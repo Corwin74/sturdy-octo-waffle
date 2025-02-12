@@ -1,9 +1,13 @@
 package querier
 
-import "github.com/jackc/pgx"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+)
 
 
 type Querier interface {
-	QueryRow(sql string, args ...interface{}) *pgx.Row
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 

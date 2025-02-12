@@ -1,5 +1,9 @@
 package user
 
-type UserRepo interface {
 
+
+// UserRepo -- репозиторий для работы с User
+type UserRepo interface {
+	
 }
+

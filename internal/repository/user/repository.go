@@ -1,6 +1,7 @@
 package user
 
 import (
+	"shop/internal/usecase/user"
 	"shop/pkg/querier"
 )
 
@@ -8,6 +9,9 @@ import (
 type Repository struct {
 	querier querier.Querier
 }
+
+var _ user.UserRepo = (*Repository)(nil)
+
 
 func NewRepository(querier querier.Querier) *Repository {
 	return &Repository{

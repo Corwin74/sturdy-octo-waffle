@@ -10,8 +10,11 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"shop/internal/conf"
+	"shop/internal/repository/user"
 	"shop/internal/server"
 	"shop/internal/service"
+	user2 "shop/internal/usecase/user"
+	"shop/pkg/querier"
 )
 
 import (
@@ -22,7 +25,13 @@ import (
 
 // wireApp init kratos application.
 func wireApp(confServer *conf.Server, data *conf.Data, logger log.Logger) (*kratos.App, func(), error) {
-	shopService := service.NewShopService()
+	database, err := querier.NewDatabase(data)
+	if err != nil {
+		return nil, nil, err
+	}
+	repository := user.NewRepository(database)
+	usecase := user2.NewUsecase(repository)
+	shopService := service.NewShopService(usecase)
 	grpcServer := server.NewGRPCServer(confServer, shopService, logger)
 	httpServer := server.NewHTTPServer(confServer, shopService, logger)
 	app := newApp(logger, grpcServer, httpServer)
