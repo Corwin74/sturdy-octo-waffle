@@ -8,6 +8,7 @@ import "google/protobuf/duration.proto";
 message Bootstrap {
   Server server = 1;
   Data data = 2;
+  Secrets secrets = 3;
 }
 
 message Server {
@@ -31,4 +32,8 @@ message Data {
   }
 
   Database database = 1;
+}
+
+message Secrets {
+  string jwt_key = 1;
 }

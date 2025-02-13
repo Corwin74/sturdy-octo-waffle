@@ -1,0 +1,24 @@
+services:
+  avito-shop:
+    build:
+      context: .
+    restart: no
+    ports:
+      - "8080:8080"
+    volumes:
+    - ./configs/:/data/
+    depends_on:
+      - postgres_avito_shop
+  postgres_avito_shop:
+    image: postgres:15
+    volumes:
+      - postgres_avito_shop:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=db_admin
+      - POSTGRES_PASSWORD=avito2025
+      - POSTGRES_DB=avito_shop
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_avito_shop:

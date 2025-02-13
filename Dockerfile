@@ -19,6 +19,6 @@ WORKDIR /app
 
 EXPOSE 8080
 EXPOSE 9000
-VOLUME /data/conf
+VOLUME /data
 
-CMD ["./server", "-conf", "/data/conf"]
+CMD ["./shop", "-conf", "/data/config.yaml"]

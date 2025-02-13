@@ -13,13 +13,10 @@ import (
 // 	Source string
 // }
 
-
 // Database - структура, реализующая интерфейс Querier
 type Database struct {
     pool *pgxpool.Pool
 }
-
-var _ Querier = (*Database)(nil)
 
 // func NewPostgres(conf PostgresConf) (Querier, error) {
 // 	config, err := pgx.ParseDSN(conf.Source)
@@ -40,6 +37,10 @@ var _ Querier = (*Database)(nil)
 func NewDatabase(conf *conf.Data) (*Database, error) {
     ctx := context.Background()
     
+	if conf == nil {
+		return nil, fmt.Errorf("no config data")
+	}
+	
 	config, err := pgxpool.ParseConfig(conf.Database.Source)
 	if err != nil {
 		return nil, fmt.Errorf("parsing DSN database: %w", err)

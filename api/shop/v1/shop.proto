@@ -8,24 +8,25 @@ option go_package = "shop/api/shop/v1;v1";
 
 // The Shop service definition.
 service Shop {
-  rpc Info(InfoRequest) returns (InfoResponse) {
-    option (google.api.http) = {
-      get: "/api/info"
-    };
-  }
-  rpc SendCoin(SentTransaction) returns (SuccessResponse) {
-    option (google.api.http) = {
-      get: "/api/sendCoin"
-    };
-  }
-  rpc BuyItem(Item) returns (SuccessResponse) {
-    option (google.api.http) = {
-      get: "/api/buy/{name}"
-    };
-  }
+  // rpc Info(InfoRequest) returns (InfoResponse) {
+  //   option (google.api.http) = {
+  //     get: "/api/info"
+  //   };
+  // }
+  // rpc SendCoin(SentTransaction) returns (SuccessResponse) {
+  //   option (google.api.http) = {
+  //     get: "/api/sendCoin"
+  //   };
+  // }
+  // rpc BuyItem(Item) returns (SuccessResponse) {
+  //   option (google.api.http) = {
+  //     get: "/api/buy/{name}"
+  //   };
+  // }
   rpc Auth(AuthRequest) returns (AuthResponse) {
     option (google.api.http) = {
-      get: "/api/auth"
+      post: "/api/auth"
+      body: "*"
     };
   }
 }
@@ -68,15 +69,6 @@ message SentTransaction {
   int32 amount = 2;
 }
 
-// Ответ с ошибкой
-message ErrorResponse {
-  string errors = 1;
-}
-
-message SuccessResponse {
-  bool success = 1;
-  string message = 2;
-}
 
 // Запрос на аутентификацию
 message AuthRequest {
@@ -89,6 +81,8 @@ message AuthRequest {
 
 // Ответ на запрос аутентификации
 message AuthResponse {
-  // JWT-токен для доступа к защищенным ресурсам
-  string token = 1;
+  oneof data {
+    string token = 1;
+    string error = 2;
+  } 
 }

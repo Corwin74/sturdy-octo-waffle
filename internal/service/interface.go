@@ -1,7 +1,10 @@
 package service
 
-import "context"
+import (
+	"context"
+
+)
 
 type UserUsecase interface {
-	Auth(ctx context.Context) error
+	Auth(ctx context.Context, username, password string) (string, error)
 }
