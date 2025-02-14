@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"shop/api/shop/v1"
+	v1 "shop/api/shop/v1"
 )
 
 // ShopService is a shop service.
@@ -21,7 +21,7 @@ func NewShopService(uu UserUsecase) *ShopService {
 // // Info -- Получить информацию о монетах, инвентаре и истории транзакций
 // func (s *ShopService) Info(ctx context.Context, in *v1.InfoRequest) (*v1.InfoResponse, error) {
 
-// 	return &v1.InfoResponse{Coins: 50, Inventory: []*v1.InventoryItem{}, 
+// 	return &v1.InfoResponse{Coins: 50, Inventory: []*v1.InventoryItem{},
 // 	CoinHistory: nil}, nil
 // }
 
@@ -34,7 +34,6 @@ func NewShopService(uu UserUsecase) *ShopService {
 // 	return &v1.SuccessResponse{Message: outMessage}, nil
 // }
 
-
 // // BuyItem -- Купить предмет за монеты
 // func (s *ShopService) BuyItem(ctx context.Context, in *v1.Item) (*v1.SuccessResponse, error) {
 // 	if in.Name == "" {
@@ -46,9 +45,13 @@ func NewShopService(uu UserUsecase) *ShopService {
 
 // Auth -- Получение токена
 func (s *ShopService) Auth(ctx context.Context, in *v1.AuthRequest) (*v1.AuthResponse, error) {
+	if in.Password == "" || in.Username == "" {
+		return &v1.AuthResponse{Data: &v1.AuthResponse_Error{Error: "400"}}, ErrBadRequest
+	}
+	
 	token, err := s.userUsecase.Auth(ctx, in.Username, in.Password)
 	if err != nil {
-		return &v1.AuthResponse{Data: &v1.AuthResponse_Error{Error: err.Error()}}, nil
+		return &v1.AuthResponse{Data: &v1.AuthResponse_Error{Error: "401"}}, ErrUnauthorized
 	}
 
 	return &v1.AuthResponse{Data: &v1.AuthResponse_Token{Token: token}}, nil

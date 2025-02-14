@@ -13,4 +13,3 @@ type UserRepo interface {
 	Get(ctx context.Context, filter repo_user.Filter) (models.User, error)
 	Create(ctx context.Context, user models.User) (uuid.UUID, error)
 }
-

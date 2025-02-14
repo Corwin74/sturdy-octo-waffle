@@ -82,7 +82,7 @@ message AuthRequest {
 // Ответ на запрос аутентификации
 message AuthResponse {
   oneof data {
-    string token = 1;
+    string token = 1; 
     string error = 2;
   } 
 }

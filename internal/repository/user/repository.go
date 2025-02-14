@@ -28,8 +28,8 @@ func NewRepository(querier querier.Querier) *Repository {
 }
 
 func (repo *Repository) Get(ctx context.Context, filter Filter) (models.User, error) {
-	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-	query := psql.Select(scheme_user.ID, scheme_user.Name, scheme_user.Password, scheme_user.Balance).
+	query := sq.Select(scheme_user.ID, scheme_user.Name, scheme_user.Password, scheme_user.Balance).
+		PlaceholderFormat(sq.Dollar).
 		From(scheme_user.Table)
 
 	if filter.Username != nil {
