@@ -10,6 +10,7 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"shop/internal/conf"
+	"shop/internal/repository/transferhistory"
 	"shop/internal/repository/user"
 	"shop/internal/server"
 	"shop/internal/service"
@@ -29,8 +30,9 @@ func wireApp(confServer *conf.Server, data *conf.Data, secrets *conf.Secrets, lo
 	if err != nil {
 		return nil, nil, err
 	}
-	repository := user.NewRepository(database)
-	usecase := user2.NewUsecase(repository, secrets)
+	repository := user.NewRepository(database, secrets)
+	transferhistoryRepository := transferhistory.NewRepository(database)
+	usecase := user2.NewUsecase(repository, transferhistoryRepository, secrets, database)
 	shopService := service.NewShopService(usecase)
 	grpcServer := server.NewGRPCServer(confServer, shopService, logger)
 	httpServer := server.NewHTTPServer(confServer, shopService, logger)
