@@ -16,6 +16,7 @@ import (
 	"shop/internal/service"
 	user2 "shop/internal/usecase/user"
 	"shop/pkg/querier"
+	"shop/pkg/transaction"
 )
 
 import (
@@ -32,7 +33,8 @@ func wireApp(confServer *conf.Server, data *conf.Data, secrets *conf.Secrets, lo
 	}
 	repository := user.NewRepository(database, secrets)
 	transferhistoryRepository := transferhistory.NewRepository(database)
-	usecase := user2.NewUsecase(repository, transferhistoryRepository, secrets, database)
+	fabric := transaction.NewTrFabric(database)
+	usecase := user2.NewUsecase(repository, transferhistoryRepository, secrets, database, fabric)
 	shopService := service.NewShopService(usecase)
 	grpcServer := server.NewGRPCServer(confServer, shopService, logger)
 	httpServer := server.NewHTTPServer(confServer, shopService, logger)

@@ -12,17 +12,7 @@ paths:
             tags:
                 - Shop
             description: |-
-                rpc Info(InfoRequest) returns (InfoResponse) {
-                   option (google.api.http) = {
-                     get: "/api/info"
-                   };
-                 }
-                 rpc SendCoin(SentTransaction) returns (SuccessResponse) {
-                   option (google.api.http) = {
-                     get: "/api/sendCoin"
-                   };
-                 }
-                 rpc BuyItem(Item) returns (SuccessResponse) {
+                rpc BuyItem(Item) returns (SuccessResponse) {
                    option (google.api.http) = {
                      get: "/api/buy/{name}"
                    };
@@ -41,6 +31,30 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/shop.v1.AuthResponse'
+    /api/sendCoin:
+        post:
+            tags:
+                - Shop
+            description: |-
+                rpc Info(InfoRequest) returns (InfoResponse) {
+                   option (google.api.http) = {
+                     get: "/api/info"
+                   };
+                 }
+            operationId: Shop_SendCoin
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/shop.v1.SentTransaction'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/shop.v1.SendCoinResponse'
 components:
     schemas:
         shop.v1.AuthRequest:
@@ -61,5 +75,19 @@ components:
                 error:
                     type: string
             description: Ответ на запрос аутентификации
+        shop.v1.SendCoinResponse:
+            type: object
+            properties:
+                error:
+                    type: string
+        shop.v1.SentTransaction:
+            type: object
+            properties:
+                toUser:
+                    type: string
+                amount:
+                    type: integer
+                    format: int32
+            description: Отправленная транзакция
 tags:
     - name: Shop

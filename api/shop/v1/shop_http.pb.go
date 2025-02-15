@@ -20,29 +20,49 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationShopAuth = "/shop.v1.Shop/Auth"
+const OperationShopSendCoin = "/shop.v1.Shop/SendCoin"
 
 type ShopHTTPServer interface {
-	// Auth rpc Info(InfoRequest) returns (InfoResponse) {
-	//   option (google.api.http) = {
-	//     get: "/api/info"
-	//   };
-	// }
-	// rpc SendCoin(SentTransaction) returns (SuccessResponse) {
-	//   option (google.api.http) = {
-	//     get: "/api/sendCoin"
-	//   };
-	// }
-	// rpc BuyItem(Item) returns (SuccessResponse) {
+	// Auth rpc BuyItem(Item) returns (SuccessResponse) {
 	//   option (google.api.http) = {
 	//     get: "/api/buy/{name}"
 	//   };
 	// }
 	Auth(context.Context, *AuthRequest) (*AuthResponse, error)
+	// SendCoin rpc Info(InfoRequest) returns (InfoResponse) {
+	//   option (google.api.http) = {
+	//     get: "/api/info"
+	//   };
+	// }
+	SendCoin(context.Context, *SentTransaction) (*SendCoinResponse, error)
 }
 
 func RegisterShopHTTPServer(s *http.Server, srv ShopHTTPServer) {
 	r := s.Route("/")
+	r.POST("/api/sendCoin", _Shop_SendCoin0_HTTP_Handler(srv))
 	r.POST("/api/auth", _Shop_Auth0_HTTP_Handler(srv))
+}
+
+func _Shop_SendCoin0_HTTP_Handler(srv ShopHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in SentTransaction
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationShopSendCoin)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.SendCoin(ctx, req.(*SentTransaction))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*SendCoinResponse)
+		return ctx.Result(200, reply)
+	}
 }
 
 func _Shop_Auth0_HTTP_Handler(srv ShopHTTPServer) func(ctx http.Context) error {
@@ -69,6 +89,7 @@ func _Shop_Auth0_HTTP_Handler(srv ShopHTTPServer) func(ctx http.Context) error {
 
 type ShopHTTPClient interface {
 	Auth(ctx context.Context, req *AuthRequest, opts ...http.CallOption) (rsp *AuthResponse, err error)
+	SendCoin(ctx context.Context, req *SentTransaction, opts ...http.CallOption) (rsp *SendCoinResponse, err error)
 }
 
 type ShopHTTPClientImpl struct {
@@ -84,6 +105,19 @@ func (c *ShopHTTPClientImpl) Auth(ctx context.Context, in *AuthRequest, opts ...
 	pattern := "/api/auth"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationShopAuth))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *ShopHTTPClientImpl) SendCoin(ctx context.Context, in *SentTransaction, opts ...http.CallOption) (*SendCoinResponse, error) {
+	var out SendCoinResponse
+	pattern := "/api/sendCoin"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationShopSendCoin))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {

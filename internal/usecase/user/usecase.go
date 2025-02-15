@@ -8,26 +8,33 @@ import (
 	"shop/internal/models"
 	"shop/internal/repository/common"
 	repo_user "shop/internal/repository/user"
-	"time"
-
-	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
+	"shop/pkg/querier"
+	"shop/pkg/transaction"
 )
-
-const bcryptCost = 10
 
 // Usecase -- пользователя
 type Usecase struct {
-	userRepo UserRepo
-	config   *conf.Secrets
+	userRepo          UserRepo
+	transferHistory   TransferHistory
+	config            *conf.Secrets
+	querier           querier.Querier
+	transactionFabric transaction.Fabric
 }
 
 // NewUsecase -- конструктор
-func NewUsecase(userRepo UserRepo, config *conf.Secrets) *Usecase {
+func NewUsecase(
+	userRepo UserRepo,
+	transferHistory TransferHistory,
+	config *conf.Secrets,
+	querier querier.Querier,
+	transactionFabric transaction.Fabric,
+) *Usecase {
 	return &Usecase{
-		userRepo: userRepo,
-		config:   config,
+		userRepo:        userRepo,
+		transferHistory: transferHistory,
+		config:          config,
+		querier:         querier,
+		transactionFabric: transactionFabric,
 	}
 }
 
@@ -41,7 +48,7 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
-			hashedPassword, err := HashPassword(password)
+			hashedPassword, err := GenerateArgon2Hash(password)
 			if err != nil {
 				return "", fmt.Errorf("hashing password: %w", err)
 			}
@@ -59,7 +66,7 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 			return "", fmt.Errorf("getting user: %w", err)
 		}
 	} else {
-		if !checkPassword(password, user.Password) {
+		if match, _ := verifyPassword(password, user.Password); !match {
 			return "", fmt.Errorf("invalid password")
 		}
 	}
@@ -67,28 +74,61 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 	return generateTokenForUser(userID, uc.config.JwtKey), nil
 }
 
-func generateTokenForUser(userID uuid.UUID, secret string) string {
-	now := time.Now()
-
-	claims := jwt.MapClaims{
-		"id":  userID.String(),
-		"iat": now.Unix(),                     // время создания токена
-		"exp": now.Add(24 * time.Hour).Unix(), // срок действия - 24 часа
-		"jti": uuid.New().String(),            // уникальный идентификатор токена
+func (uc *Usecase) TransferCoins(ctx context.Context, fromUser models.User, receiveUsername string, amount uint) error {
+	ctx, tr, err := uc.transactionFabric.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	toUserFilter := repo_user.Filter{Username: &receiveUsername}
+	fromUserFilter := repo_user.Filter{ID: &fromUser.ID}
+	getOpts := repo_user.GetOptions{ForUpdate: true}
+	toUser, err := uc.userRepo.Get(ctx, toUserFilter, getOpts)
+	if err != nil {
+		return fmt.Errorf("receive user: %w", err)
+	}
+	if fromUser.Balance < amount {
+		return fmt.Errorf("no enough money: %w", err)
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, _ := token.SignedString([]byte(secret))
-	return signedToken
+	fromUser.Balance -= amount
+	toUser.Balance += amount
+
+	err = uc.userRepo.Update(ctx, repo_user.Update{Balance: &fromUser.Balance}, fromUserFilter)
+	if err != nil {
+		if tErr := tr.Rollback(ctx); tErr != nil {
+			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
+		}
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+
+	err = uc.userRepo.Update(ctx, repo_user.Update{Balance: &toUser.Balance}, toUserFilter)
+	if err != nil {
+		if tErr := tr.Rollback(ctx); tErr != nil {
+			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
+		}
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+
+	transferHistoty := models.TransferHistory{
+		SenderID:   fromUser.ID,
+		ReceiverID: toUser.ID,
+		Amount:     amount,
+	}
+	_, err = uc.transferHistory.Create(ctx, transferHistoty)
+	if err != nil {
+		if tErr := tr.Rollback(ctx); tErr != nil {
+			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
+		}
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+
+	err = tr.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+	return nil
 }
 
-// HashPassword -- хеширует пароль для безопасного хранения
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
-	return string(bytes), err
-}
-
-func checkPassword(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+func (uc *Usecase) IsAuth(ctx context.Context) (models.User, error) {
+	return uc.userRepo.IsAuth(ctx)
 }

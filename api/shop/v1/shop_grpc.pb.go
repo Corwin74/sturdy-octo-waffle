@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Shop_Auth_FullMethodName = "/shop.v1.Shop/Auth"
+	Shop_SendCoin_FullMethodName = "/shop.v1.Shop/SendCoin"
+	Shop_Auth_FullMethodName     = "/shop.v1.Shop/Auth"
 )
 
 // ShopClient is the client API for Shop service.
@@ -33,13 +34,7 @@ type ShopClient interface {
 	//	    get: "/api/info"
 	//	  };
 	//	}
-	//
-	//	rpc SendCoin(SentTransaction) returns (SuccessResponse) {
-	//	  option (google.api.http) = {
-	//	    get: "/api/sendCoin"
-	//	  };
-	//	}
-	//
+	SendCoin(ctx context.Context, in *SentTransaction, opts ...grpc.CallOption) (*SendCoinResponse, error)
 	//	rpc BuyItem(Item) returns (SuccessResponse) {
 	//	  option (google.api.http) = {
 	//	    get: "/api/buy/{name}"
@@ -54,6 +49,16 @@ type shopClient struct {
 
 func NewShopClient(cc grpc.ClientConnInterface) ShopClient {
 	return &shopClient{cc}
+}
+
+func (c *shopClient) SendCoin(ctx context.Context, in *SentTransaction, opts ...grpc.CallOption) (*SendCoinResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SendCoinResponse)
+	err := c.cc.Invoke(ctx, Shop_SendCoin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *shopClient) Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
@@ -77,13 +82,7 @@ type ShopServer interface {
 	//	    get: "/api/info"
 	//	  };
 	//	}
-	//
-	//	rpc SendCoin(SentTransaction) returns (SuccessResponse) {
-	//	  option (google.api.http) = {
-	//	    get: "/api/sendCoin"
-	//	  };
-	//	}
-	//
+	SendCoin(context.Context, *SentTransaction) (*SendCoinResponse, error)
 	//	rpc BuyItem(Item) returns (SuccessResponse) {
 	//	  option (google.api.http) = {
 	//	    get: "/api/buy/{name}"
@@ -100,6 +99,9 @@ type ShopServer interface {
 // pointer dereference when methods are called.
 type UnimplementedShopServer struct{}
 
+func (UnimplementedShopServer) SendCoin(context.Context, *SentTransaction) (*SendCoinResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendCoin not implemented")
+}
 func (UnimplementedShopServer) Auth(context.Context, *AuthRequest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Auth not implemented")
 }
@@ -122,6 +124,24 @@ func RegisterShopServer(s grpc.ServiceRegistrar, srv ShopServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&Shop_ServiceDesc, srv)
+}
+
+func _Shop_SendCoin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SentTransaction)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ShopServer).SendCoin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Shop_SendCoin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ShopServer).SendCoin(ctx, req.(*SentTransaction))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Shop_Auth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -149,6 +169,10 @@ var Shop_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "shop.v1.Shop",
 	HandlerType: (*ShopServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SendCoin",
+			Handler:    _Shop_SendCoin_Handler,
+		},
 		{
 			MethodName: "Auth",
 			Handler:    _Shop_Auth_Handler,

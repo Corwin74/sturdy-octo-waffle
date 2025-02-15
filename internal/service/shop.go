@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 	v1 "shop/api/shop/v1"
+
 )
 
 // ShopService is a shop service.
@@ -25,14 +27,21 @@ func NewShopService(uu UserUsecase) *ShopService {
 // 	CoinHistory: nil}, nil
 // }
 
-// // SendCoin -- Отправить монеты другому пользователю
-// func (s *ShopService) SendCoin(ctx context.Context, in *v1.SentTransaction) (*v1.SuccessResponse, error) {
-// 	if in.Amount == 0 {
-// 		return &v1.SuccessResponse{Message: "Нулевые входные данные, караул!!!"}, errors.New("fhfhfhfh")
-// 	}
-// 	outMessage := fmt.Sprintf("%v, %v", in.Amount, in.ToUser)
-// 	return &v1.SuccessResponse{Message: outMessage}, nil
-// }
+// SendCoin -- Отправить монеты другому пользователю
+func (s *ShopService) SendCoin(ctx context.Context, in *v1.SentTransaction) (*v1.SendCoinResponse, error) {
+	if in.Amount == 0 {
+		return &v1.SendCoinResponse{Error: "400"}, ErrBadRequest
+	}
+	if in.ToUser == "" {
+		return &v1.SendCoinResponse{Error: "400"}, ErrBadRequest
+	}
+	err = s.userUsecase.TransferCoins(ctx, in.ToUser, uint(in.Amount))
+	if err != nil {
+		return &v1.SendCoinResponse{Error: "500"}, ErrInternal
+	}
+	outMessage := fmt.Sprintf("%v, %v", in.Amount, in.ToUser)
+	return &v1.SendCoinResponse{Error: outMessage}, nil
+}
 
 // // BuyItem -- Купить предмет за монеты
 // func (s *ShopService) BuyItem(ctx context.Context, in *v1.Item) (*v1.SuccessResponse, error) {

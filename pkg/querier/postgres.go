@@ -7,31 +7,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn"
 )
-
-// type PostgresConf struct {
-// 	Source string
-// }
 
 // Database - структура, реализующая интерфейс Querier
 type Database struct {
     pool *pgxpool.Pool
 }
-
-// func NewPostgres(conf PostgresConf) (Querier, error) {
-// 	config, err := pgx.ParseDSN(conf.Source)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("parsing DSN database: %w", err)
-// 	}
-
-// 	conn, err := pgx.Connect(config)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unable connect to database: %w", err)
-// 	}
-
-// 	return conn, nil
-// }
-
 
 // NewDatabase создает новый экземпляр Database
 func NewDatabase(conf *conf.Data) (*Database, error) {
@@ -71,3 +53,14 @@ func (db *Database) Query(ctx context.Context, sql string, args ...any) (pgx.Row
 func (db *Database) Close() {
     db.pool.Close()
 }
+
+// BeginRepeatableTx - начинает транзакцию
+func (db *Database) BeginRepeatableTx(ctx context.Context) (pgx.Tx, error) {
+	return db.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
+}
+
+func (db *Database) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	return db.pool.Exec(ctx, sql, args...)
+}
+
+var _ Querier = (*Database)(nil)
