@@ -35,7 +35,8 @@ func (s *ShopService) SendCoin(ctx context.Context, in *v1.SentTransaction) (*v1
 	if in.ToUser == "" {
 		return &v1.SendCoinResponse{Error: "400"}, ErrBadRequest
 	}
-	err = s.userUsecase.TransferCoins(ctx, in.ToUser, uint(in.Amount))
+	err := s.userUsecase.TransferCoins(ctx, in.ToUser, uint(in.Amount))
+	fmt.Println(err)
 	if err != nil {
 		return &v1.SendCoinResponse{Error: "500"}, ErrInternal
 	}

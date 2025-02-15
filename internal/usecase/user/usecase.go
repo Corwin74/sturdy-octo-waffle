@@ -42,7 +42,7 @@ func NewUsecase(
 //
 // возвращет JWT
 func (uc *Usecase) Auth(ctx context.Context, username, password string) (string, error) {
-	user, err := uc.userRepo.Get(ctx, repo_user.Filter{Username: &username})
+	user, err := uc.userRepo.Get(ctx, repo_user.Filter{Username: &username}, repo_user.GetOptions{})
 
 	userID := user.ID
 
@@ -74,15 +74,20 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 	return generateTokenForUser(userID, uc.config.JwtKey), nil
 }
 
-func (uc *Usecase) TransferCoins(ctx context.Context, fromUser models.User, receiveUsername string, amount uint) error {
+func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount uint) error {
+	fromUserID, err := uc.userRepo.IsAuth(ctx)
 	ctx, tr, err := uc.transactionFabric.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	toUserFilter := repo_user.Filter{Username: &receiveUsername}
-	fromUserFilter := repo_user.Filter{ID: &fromUser.ID}
+	toUserFilter := repo_user.Filter{Username: &toUserName}
+	fromUserFilter := repo_user.Filter{ID: &fromUserID}
 	getOpts := repo_user.GetOptions{ForUpdate: true}
 	toUser, err := uc.userRepo.Get(ctx, toUserFilter, getOpts)
+	if err != nil {
+		return fmt.Errorf("receive user: %w", err)
+	}
+	fromUser, err := uc.userRepo.Get(ctx, fromUserFilter, getOpts)
 	if err != nil {
 		return fmt.Errorf("receive user: %w", err)
 	}
@@ -108,7 +113,6 @@ func (uc *Usecase) TransferCoins(ctx context.Context, fromUser models.User, rece
 		}
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
-
 	transferHistoty := models.TransferHistory{
 		SenderID:   fromUser.ID,
 		ReceiverID: toUser.ID,
@@ -121,14 +125,9 @@ func (uc *Usecase) TransferCoins(ctx context.Context, fromUser models.User, rece
 		}
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
-
 	err = tr.Commit(ctx)
 	if err != nil {
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
 	return nil
-}
-
-func (uc *Usecase) IsAuth(ctx context.Context) (models.User, error) {
-	return uc.userRepo.IsAuth(ctx)
 }

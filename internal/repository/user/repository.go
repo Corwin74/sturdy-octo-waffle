@@ -60,6 +60,10 @@ func (repo *Repository) Get(ctx context.Context, filter Filter, opts GetOptions)
 		query = query.Where(sq.Eq{scheme_user.Name: *filter.Username})
 	}
 
+	if filter.ID != nil {
+		query = query.Where(sq.Eq{scheme_user.ID: *filter.ID})
+	}
+
 	if opts.ForUpdate {
 		query = query.Suffix("FOR UPDATE")
 	}
@@ -124,21 +128,26 @@ func (repo *Repository) Update(ctx context.Context, update Update, filter Filter
 	if filter.ID != nil {
 		query = query.Where(sq.Eq{scheme_user.ID: filter.ID})
 	}
+
 	if filter.Username != nil {
 		query = query.Where(sq.Eq{scheme_user.Name: filter.Username})
 	}
+
 	if update.Balance != nil {
 		query = query.Set(scheme_user.Balance, update.Balance)
 	}
+
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return fmt.Errorf("building sql: %w", err)
 	}
-
+	
 	_, err = transaction.Get(ctx, repo.querier).Exec(ctx, sql, args...)
+
 	if err != nil {
 		return fmt.Errorf("executing: %w", err)
 	}
+
 	return nil
 } 
 
@@ -156,18 +165,17 @@ func extractToken(authorization string) (string, error) {
     return parts[1], nil
 }
 
-// IsAuth проверяет валидность токена и возвращает пользователя
-func (repo *Repository) IsAuth(ctx context.Context) (models.User, error) {
+// IsAuth проверяет валидность токена 
+func (repo *Repository) IsAuth(ctx context.Context) (uuid.UUID, error) {
     tc, ok := transport.FromServerContext(ctx)
 	if !ok {
-        return models.User{}, ErrNoToken
+        return uuid.Nil, ErrNoToken
     }
 	headers := tc.RequestHeader()
     authorization := headers.Get("authorization")
     tokenString, err := extractToken(authorization)
-	fmt.Println(tokenString)
     if err != nil {
-        return models.User{}, err
+        return uuid.Nil, err
     }
 
     token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -179,32 +187,26 @@ func (repo *Repository) IsAuth(ctx context.Context) (models.User, error) {
 
     if err != nil {
         if errors.Is(err, jwt.ErrTokenExpired) {
-            return models.User{}, ErrExpiredToken
+            return uuid.Nil, ErrExpiredToken
         }
-        return models.User{}, ErrInvalidToken
+        return uuid.Nil, ErrInvalidToken
     }
 
     claims, ok := token.Claims.(jwt.MapClaims)
     if !ok || !token.Valid {
-        return models.User{}, ErrInvalidToken
+        return uuid.Nil, ErrInvalidToken
     }
 
     // Проверяем наличие необходимых полей
     userIDStr, ok := claims["id"].(string)
     if !ok {
-        return models.User{}, ErrInvalidToken
+        return uuid.Nil, ErrInvalidToken
     }
 
     userID, err := uuid.Parse(userIDStr)
     if err != nil {
-        return models.User{}, ErrInvalidToken
+        return uuid.Nil, ErrInvalidToken
     }
 
-    // Получаем пользователя из БД
-    user, err := repo.Get(ctx, Filter{ID: &userID})
-    if err != nil {
-        return models.User{}, err
-    }
-
-    return user, nil
+    return userID, nil
 }

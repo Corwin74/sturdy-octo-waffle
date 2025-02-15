@@ -8,6 +8,7 @@ import (
 	scheme_transferhistory "shop/internal/repository/scheme/transferhistory"
 	scheme_user "shop/internal/repository/scheme/user"
 	"shop/pkg/querier"
+	"shop/pkg/transaction"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -132,55 +133,18 @@ func (repo *Repository) Create(ctx context.Context, th models.TransferHistory) (
 		return uuid.Nil, fmt.Errorf("building sql: %w", err)
 	}
 
-	row := repo.querier.QueryRow(ctx, sql, args...)
+	row := transaction.Get(ctx, repo.querier).QueryRow(ctx, sql, args...)
+	// row := repo.querier.QueryRow(ctx, sql, args...)
 	var idString string
 	err = row.Scan(&idString)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("quering: %w", err)
 	}
+
 	id, err := uuid.Parse(idString)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("parsing id: %w", err)
 	}
+	
 	return id, nil
-}
-
-func (repo *Repository) Get(ctx context.Context, filter Filter) (models.TransferHistory, error) {
-	query := sq.Select(
-		scheme_transferhistory.ID,
-		scheme_transferhistory.SenderID,
-		scheme_transferhistory.ReceiverID,
-		scheme_transferhistory.Amount,
-	).PlaceholderFormat(sq.Dollar).From(scheme_user.Table)
-
-	if filter.SenderID != nil {
-		query = query.Where(sq.Eq{scheme_transferhistory.SenderID: *filter.SenderID})
-	}
-
-	if filter.ReceiverID != nil {
-		query = query.Where(sq.Eq{scheme_transferhistory.ReceiverID: *filter.ReceiverID})
-	}
-
-	sql, args, err := query.ToSql()
-	if err != nil {
-		return models.TransferHistory{}, fmt.Errorf("building sql: %w", err)
-	}
-
-	row := repo.querier.QueryRow(ctx, sql, args...)
-	var dbModel scheme_transferhistory.TransferHistory
-	err = row.Scan(&dbModel.ID, &dbModel.SenderID, &dbModel.ReceiverID, &dbModel.Amount)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.TransferHistory{}, common.ErrNotFound
-		}
-
-		return models.TransferHistory{}, fmt.Errorf("quering: %w", err)
-	}
-
-	domainModel, err := dbModel.ConvertToDomainModel()
-	if err != nil {
-		return models.TransferHistory{}, fmt.Errorf("converting: %w", err)
-	}
-
-	return domainModel, nil
 }

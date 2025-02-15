@@ -13,13 +13,9 @@ type UserRepo interface {
 	Get(ctx context.Context, filter repo_user.Filter, opts repo_user.GetOptions) (models.User, error)
 	Create(ctx context.Context, user models.User) (uuid.UUID, error)
 	Update(ctx context.Context, update repo_user.Update, filter repo_user.Filter) error
-	IsAuth(ctx context.Context) (models.User, error)
+	IsAuth(ctx context.Context) (uuid.UUID, error)
 }
 
 type TransferHistory interface{
 	Create(ctx context.Context, th models.TransferHistory) (uuid.UUID, error)
-}
-
-func UserRepoWithTx(repo UserRepo) {
-	
 }
