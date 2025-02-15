@@ -28,30 +28,33 @@ func NewShopService(uu UserUsecase) *ShopService {
 // }
 
 // SendCoin -- Отправить монеты другому пользователю
-func (s *ShopService) SendCoin(ctx context.Context, in *v1.SentTransaction) (*v1.SendCoinResponse, error) {
+func (s *ShopService) SendCoin(ctx context.Context, in *v1.SentTransaction) (*v1.BaseResponse, error) {
 	if in.Amount == 0 {
-		return &v1.SendCoinResponse{Error: "400"}, ErrBadRequest
+		return &v1.BaseResponse{Error: "400"}, ErrBadRequest
 	}
 	if in.ToUser == "" {
-		return &v1.SendCoinResponse{Error: "400"}, ErrBadRequest
+		return &v1.BaseResponse{Error: "400"}, ErrBadRequest
 	}
 	err := s.userUsecase.TransferCoins(ctx, in.ToUser, uint(in.Amount))
 	fmt.Println(err)
 	if err != nil {
-		return &v1.SendCoinResponse{Error: "500"}, ErrInternal
+		return &v1.BaseResponse{Error: "500"}, ErrInternal
 	}
 	outMessage := fmt.Sprintf("%v, %v", in.Amount, in.ToUser)
-	return &v1.SendCoinResponse{Error: outMessage}, nil
+	return &v1.BaseResponse{Error: outMessage}, nil
 }
 
-// // BuyItem -- Купить предмет за монеты
-// func (s *ShopService) BuyItem(ctx context.Context, in *v1.Item) (*v1.SuccessResponse, error) {
-// 	if in.Name == "" {
-// 		return &v1.SuccessResponse{Message: "Нулевые входные данные, караул!!!"}, errors.New("fhfhfhfh")
-// 	}
-// 	outMessage := fmt.Sprintf("%v", in.Name)
-// 	return &v1.SuccessResponse{Success: true, Message: outMessage}, nil
-// }
+// BuyItem -- Купить предмет за монеты
+func (s *ShopService) BuyItem(ctx context.Context, in *v1.Item) (*v1.BaseResponse, error) {
+	if in.Name == "" {
+		return &v1.BaseResponse{Error: "400"}, ErrBadRequest
+	}
+	err := s.userUsecase.Buy(ctx, in.Name)
+	if err != nil {
+		return &v1.BaseResponse{Error: "400"}, ErrBadRequest
+	}
+	return &v1.BaseResponse{Error: "Cool!"}, nil
+}
 
 // Auth -- Получение токена
 func (s *ShopService) Auth(ctx context.Context, in *v1.AuthRequest) (*v1.AuthResponse, error) {

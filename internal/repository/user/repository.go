@@ -30,6 +30,7 @@ type UserClaims struct {
     jwt.RegisteredClaims
     UserID uuid.UUID `json:"user_id"`
 }
+
 type Repository struct {
 	querier querier.Querier
 	secret   *conf.Secrets
@@ -42,14 +43,6 @@ func NewRepository(querier querier.Querier, secret *conf.Secrets) *Repository {
 		secret: secret,
 	}
 }
-
-
-// func (repo Repository) WithTx(tx pgx.Tx) *Repository {
-// 	return *Repository{
-// 		querier: tx,
-// 	}
-// }
-
 
 func (repo *Repository) Get(ctx context.Context, filter Filter, opts GetOptions) (models.User, error) {
 	query := sq.Select(scheme_user.ID, scheme_user.Name, scheme_user.Password, scheme_user.Balance).

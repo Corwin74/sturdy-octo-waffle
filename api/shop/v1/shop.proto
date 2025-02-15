@@ -13,17 +13,17 @@ service Shop {
   //     get: "/api/info"
   //   };
   // }
-  rpc SendCoin(SentTransaction) returns (SendCoinResponse) {
+  rpc SendCoin(SentTransaction) returns (BaseResponse) {
     option (google.api.http) = {
       post: "/api/sendCoin"
       body: "*"
     };
   }
-  // rpc BuyItem(Item) returns (SuccessResponse) {
-  //   option (google.api.http) = {
-  //     get: "/api/buy/{name}"
-  //   };
-  // }
+  rpc BuyItem(Item) returns (BaseResponse) {
+    option (google.api.http) = {
+      get: "/api/buy/{name}"
+    };
+  }
   rpc Auth(AuthRequest) returns (AuthResponse) {
     option (google.api.http) = {
       post: "/api/auth"
@@ -88,6 +88,6 @@ message AuthResponse {
   } 
 }
 
-message SendCoinResponse {
+message BaseResponse {
     string error = 1;
 } 

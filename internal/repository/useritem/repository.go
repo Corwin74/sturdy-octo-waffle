@@ -7,6 +7,7 @@ import (
 	"shop/internal/repository/common"
 	"shop/internal/repository/scheme/useritem"
 	"shop/pkg/querier"
+	"shop/pkg/transaction"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ func (repo *Repository) Get(ctx context.Context, filter Filter) (models.UserItem
 		return models.UserItem{}, fmt.Errorf("building sql: %w", err)
 	}
 
-	row := repo.querier.QueryRow(ctx, sql, args...)
+	row := transaction.Get(ctx, repo.querier).QueryRow(ctx, sql, args...)
 	var dbModel scheme_useritem.UserItem
 	err = row.Scan(&dbModel.ID, &dbModel.UserID, &dbModel.ItemID)
 	if err != nil {
@@ -62,7 +63,8 @@ func (repo *Repository) Get(ctx context.Context, filter Filter) (models.UserItem
 func (repo *Repository) Create(ctx context.Context, md models.UserItem) (uuid.UUID, error) {
 	dbModel := scheme_useritem.ConvertToDBModel(md)
 
-	query := sq.Insert(scheme_useritem.Table).Columns(
+	query := sq.Insert(scheme_useritem.Table).PlaceholderFormat(sq.Dollar).
+	Columns(
 		scheme_useritem.UserID,
 		scheme_useritem.ItemID,
 	).Values(
@@ -75,7 +77,7 @@ func (repo *Repository) Create(ctx context.Context, md models.UserItem) (uuid.UU
 		return uuid.Nil, fmt.Errorf("building sql: %w", err)
 	}
 
-	row := repo.querier.QueryRow(ctx, sql, args...)
+	row := transaction.Get(ctx, repo.querier).QueryRow(ctx, sql, args...)
 	var idString string
 	err = row.Scan(&idString)
 	if err != nil {

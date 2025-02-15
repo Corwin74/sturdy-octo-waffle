@@ -7,6 +7,7 @@ import (
 	"shop/internal/conf"
 	"shop/internal/models"
 	"shop/internal/repository/common"
+	repo_item "shop/internal/repository/item"
 	repo_user "shop/internal/repository/user"
 	"shop/pkg/querier"
 	"shop/pkg/transaction"
@@ -15,6 +16,8 @@ import (
 // Usecase -- пользователя
 type Usecase struct {
 	userRepo          UserRepo
+	itemRepo 		  ItemRepo
+	useritemRepo      UserItemRepo
 	transferHistory   TransferHistory
 	config            *conf.Secrets
 	querier           querier.Querier
@@ -25,12 +28,16 @@ type Usecase struct {
 func NewUsecase(
 	userRepo UserRepo,
 	transferHistory TransferHistory,
+	itemRepo ItemRepo,
+	useritemRepo UserItemRepo,
 	config *conf.Secrets,
 	querier querier.Querier,
 	transactionFabric transaction.Fabric,
 ) *Usecase {
 	return &Usecase{
 		userRepo:        userRepo,
+		itemRepo: 		 itemRepo,
+		useritemRepo:    useritemRepo,	
 		transferHistory: transferHistory,
 		config:          config,
 		querier:         querier,
@@ -76,6 +83,10 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 
 func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount uint) error {
 	fromUserID, err := uc.userRepo.IsAuth(ctx)
+	if err != nil {
+		return fmt.Errorf("not auth") // TODO
+	}
+
 	ctx, tr, err := uc.transactionFabric.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -129,5 +140,55 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 	if err != nil {
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
+	return nil
+}
+
+func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
+	userID, err := uc.userRepo.IsAuth(ctx)
+	if err != nil {
+		return fmt.Errorf("not auth") // TODO
+	}
+
+	ctx, tr, err := uc.transactionFabric.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	userFilter := repo_user.Filter{ID: &userID}
+	itemFilter := repo_item.Filter{Name: &itemName}
+	getOpts := repo_user.GetOptions{ForUpdate: true}
+	user, err := uc.userRepo.Get(ctx, userFilter, getOpts)
+	if err != nil {
+		return fmt.Errorf("receive user: %w", err)
+	}
+	item, err := uc.itemRepo.Get(ctx, itemFilter)
+	if err != nil {
+		return fmt.Errorf("item: %w", err)
+	}
+	if user.Balance < item.Price {
+		return fmt.Errorf("no enough money: %w", err)
+	}
+
+	user.Balance -= item.Price
+
+	err = uc.userRepo.Update(ctx, repo_user.Update{Balance: &user.Balance}, userFilter)
+	if err != nil {
+		if tErr := tr.Rollback(ctx); tErr != nil {
+			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
+		}
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+	_, err = uc.useritemRepo.Create(ctx, models.UserItem{UserID: userID, ItemID: item.ID})
+	if err != nil {
+		if tErr := tr.Rollback(ctx); tErr != nil {
+			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
+		}
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+	err = tr.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commiting transaction: %w", err)
+	}
+
 	return nil
 }

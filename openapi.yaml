@@ -11,12 +11,6 @@ paths:
         post:
             tags:
                 - Shop
-            description: |-
-                rpc BuyItem(Item) returns (SuccessResponse) {
-                   option (google.api.http) = {
-                     get: "/api/buy/{name}"
-                   };
-                 }
             operationId: Shop_Auth
             requestBody:
                 content:
@@ -31,6 +25,24 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/shop.v1.AuthResponse'
+    /api/buy/{name}:
+        get:
+            tags:
+                - Shop
+            operationId: Shop_BuyItem
+            parameters:
+                - name: name
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/shop.v1.BaseResponse'
     /api/sendCoin:
         post:
             tags:
@@ -54,7 +66,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/shop.v1.SendCoinResponse'
+                                $ref: '#/components/schemas/shop.v1.BaseResponse'
 components:
     schemas:
         shop.v1.AuthRequest:
@@ -75,7 +87,7 @@ components:
                 error:
                     type: string
             description: Ответ на запрос аутентификации
-        shop.v1.SendCoinResponse:
+        shop.v1.BaseResponse:
             type: object
             properties:
                 error:
