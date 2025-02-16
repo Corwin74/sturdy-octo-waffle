@@ -22,7 +22,6 @@ type Usecase struct {
 	userRepo          UserRepo
 	itemRepo 		  ItemRepo
 	userItemRepo      UserItemRepo
-	transferHistory   TransferHistory
 	transferHistoryName   TransferHistoryName
 	config            *conf.Secrets
 	querier           querier.Querier
@@ -32,7 +31,6 @@ type Usecase struct {
 // NewUsecase -- конструктор
 func NewUsecase(
 	userRepo UserRepo,
-	transferHistory TransferHistory,
 	transferHistoryName TransferHistoryName,
 	itemRepo ItemRepo,
 	userItemRepo UserItemRepo,
@@ -44,7 +42,6 @@ func NewUsecase(
 		userRepo:        userRepo,
 		itemRepo: 		 itemRepo,
 		userItemRepo:    userItemRepo,	
-		transferHistory: transferHistory,
 		transferHistoryName: transferHistoryName,
 		config:          config,
 		querier:         querier,
@@ -57,7 +54,6 @@ func NewUsecase(
 // возвращет JWT
 func (uc *Usecase) Auth(ctx context.Context, username, password string) (string, error) {
 	user, err := uc.userRepo.Get(ctx, repo_user.Filter{Username: &username}, repo_user.GetOptions{})
-	fmt.Println(user, err)
 	userID := user.ID
 
 	if err != nil {
@@ -206,13 +202,13 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 		return models.UserInfo{}, common.ErrUnauthorized
 	}
 
-	// ctx, tr, err := uc.transactionFabric.Begin(ctx)
-	// if err != nil {
-	// 	return models.UserInfo{}, fmt.Errorf("begin transaction: %w", err)
-	// }
+	ctx, tr, err := uc.transactionFabric.Begin(ctx)
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("begin transaction: %w", err)
+	}
 
 	userFilter := repo_useritem.Filter{UserID: &userID}
-	getOpts := repo_user.GetOptions{ForUpdate: false}
+	getOpts := repo_user.GetOptions{ForUpdate: true}
 	user, err := uc.userRepo.Get(ctx, repo_user.Filter{ID: &userID}, getOpts)
 	if err != nil {
 		return models.UserInfo{}, fmt.Errorf("info user: %w", err)
@@ -254,7 +250,10 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	if err != nil {
 		return models.UserInfo{}, fmt.Errorf("send history: %w", err)
 	}
-	
+	err = tr.Commit(ctx)
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("commiting transaction: %w", err)
+	}
 	var sentCoins []models.SentCoins
 	for _, transfer := range sentCoinsHistory {
 		sentCoins = append(sentCoins, models.SentCoins{ToUser: transfer.ReceiverName, Amount: transfer.Amount})
