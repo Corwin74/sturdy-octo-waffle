@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"shop/internal/conf"
 	"shop/internal/models"
-	"shop/internal/repository/common"
+	"shop/internal/common"
 	repo_item "shop/internal/repository/item"
 	repo_user "shop/internal/repository/user"
 	repo_useritem "shop/internal/repository/useritem"
+	repo_transferhistory "shop/internal/repository/transferhistoryname"
 	"shop/pkg/querier"
 	"shop/pkg/transaction"
 
@@ -22,6 +23,7 @@ type Usecase struct {
 	itemRepo 		  ItemRepo
 	userItemRepo      UserItemRepo
 	transferHistory   TransferHistory
+	transferHistoryName   TransferHistoryName
 	config            *conf.Secrets
 	querier           querier.Querier
 	transactionFabric transaction.Fabric
@@ -31,6 +33,7 @@ type Usecase struct {
 func NewUsecase(
 	userRepo UserRepo,
 	transferHistory TransferHistory,
+	transferHistoryName TransferHistoryName,
 	itemRepo ItemRepo,
 	userItemRepo UserItemRepo,
 	config *conf.Secrets,
@@ -42,6 +45,7 @@ func NewUsecase(
 		itemRepo: 		 itemRepo,
 		userItemRepo:    userItemRepo,	
 		transferHistory: transferHistory,
+		transferHistoryName: transferHistoryName,
 		config:          config,
 		querier:         querier,
 		transactionFabric: transactionFabric,
@@ -53,7 +57,7 @@ func NewUsecase(
 // возвращет JWT
 func (uc *Usecase) Auth(ctx context.Context, username, password string) (string, error) {
 	user, err := uc.userRepo.Get(ctx, repo_user.Filter{Username: &username}, repo_user.GetOptions{})
-
+	fmt.Println(user, err)
 	userID := user.ID
 
 	if err != nil {
@@ -77,7 +81,7 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 		}
 	} else {
 		if match, _ := verifyPassword(password, user.Password); !match {
-			return "", fmt.Errorf("invalid password")
+			return "", common.ErrUnauthorized
 		}
 	}
 
@@ -87,7 +91,7 @@ func (uc *Usecase) Auth(ctx context.Context, username, password string) (string,
 func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount uint) error {
 	fromUserID, err := uc.userRepo.IsAuth(ctx)
 	if err != nil {
-		return fmt.Errorf("not auth") // TODO
+		return common.ErrUnauthorized
 	}
 
 	ctx, tr, err := uc.transactionFabric.Begin(ctx)
@@ -127,12 +131,12 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 		}
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
-	transferHistoty := models.TransferHistory{
-		SenderID:   fromUser.ID,
-		ReceiverID: toUser.ID,
+	transferHistory := models.TransferHistoryName{
+		SenderName:   fromUser.Name,
+		ReceiverName: toUser.Name,
 		Amount:     amount,
 	}
-	_, err = uc.transferHistory.Create(ctx, transferHistoty)
+	_, err = uc.transferHistoryName.Create(ctx, transferHistory)
 	if err != nil {
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
@@ -149,7 +153,7 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
 	userID, err := uc.userRepo.IsAuth(ctx)
 	if err != nil {
-		return fmt.Errorf("not auth") // TODO
+		return common.ErrUnauthorized
 	}
 
 	ctx, tr, err := uc.transactionFabric.Begin(ctx)
@@ -199,7 +203,7 @@ func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
 func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	userID, err := uc.userRepo.IsAuth(ctx)
 	if err != nil {
-		return models.UserInfo{}, fmt.Errorf("not auth") // TODO
+		return models.UserInfo{}, common.ErrUnauthorized
 	}
 
 	// ctx, tr, err := uc.transactionFabric.Begin(ctx)
@@ -208,12 +212,12 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	// }
 
 	userFilter := repo_useritem.Filter{UserID: &userID}
-	// getOpts := repo_user.GetOptions{ForUpdate: true}
-	// user, err := uc.userRepo.Get(ctx, userFilter, getOpts)
-	// if err != nil {
-	// 	return models.UserInfo{}, fmt.Errorf("receive user: %w", err)
+	getOpts := repo_user.GetOptions{ForUpdate: false}
+	user, err := uc.userRepo.Get(ctx, repo_user.Filter{ID: &userID}, getOpts)
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("info user: %w", err)
+	}
 	
-
 	userItemsAmount, err := uc.userItemRepo.GetUserItemsAmount(ctx, userFilter)
 	if err != nil {
 		return models.UserInfo{}, fmt.Errorf("get user item amount: %w", err)
@@ -239,7 +243,33 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 		inventory = append(inventory, models.InventoryItem{Type: name, Quantity: uint(itemAmount.Quantity)})
 	}
 
-	fmt.Println(inventory)
+	receivedCoinsHistory, err := uc.transferHistoryName.
+		GetMany(ctx, repo_transferhistory.Filter{ReceiverName: &user.Name})
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("receive history: %w", err)
+	}
 
-	return models.UserInfo{}, nil
+	sentCoinsHistory, err := uc.transferHistoryName.
+	GetMany(ctx, repo_transferhistory.Filter{SenderName: &user.Name})
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("send history: %w", err)
+	}
+	
+	var sentCoins []models.SentCoins
+	for _, transfer := range sentCoinsHistory {
+		sentCoins = append(sentCoins, models.SentCoins{ToUser: transfer.ReceiverName, Amount: transfer.Amount})
+	}
+	
+	var receivedCoins []models.ReceivedCoins
+	for _, transfer := range receivedCoinsHistory {
+		receivedCoins = append(receivedCoins, models.ReceivedCoins{FromUser: transfer.SenderName, Amount: transfer.Amount})
+	}
+	
+	coinHistory := models.CoinHistory{Received: receivedCoins, Sent: sentCoins}
+
+	return models.UserInfo{
+		Coins: user.Balance,
+		Inventory: inventory,
+		CoinHistory: coinHistory,
+	}, nil
 }

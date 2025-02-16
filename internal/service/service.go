@@ -2,6 +2,7 @@ package service
 
 import (
 	"shop/internal/repository/transferhistory"
+	"shop/internal/repository/transferhistoryname"
 	"shop/internal/repository/user"
 	"shop/internal/repository/item"
 	"shop/internal/repository/useritem"
@@ -20,6 +21,7 @@ var ShopServiceSet = wire.NewSet(
 	transaction.NewTrFabric,
 	user.NewRepository,
 	transferhistory.NewRepository,
+	transferhistoryname.NewRepository,
 	useritem.NewRepository,
 	item.NewRepository,
 	userUsecase.NewUsecase,
@@ -33,6 +35,7 @@ var ShopServiceSet = wire.NewSet(
 	wire.Bind(new(userUsecase.ItemRepo), new(*item.Repository)),
 	wire.Bind(new(userUsecase.UserRepo), new(*user.Repository)),
 	wire.Bind(new(userUsecase.TransferHistory), new(*transferhistory.Repository)),
+	wire.Bind(new(userUsecase.TransferHistoryName), new(*transferhistoryname.Repository)),
 	// usecase
 	wire.Bind(new(UserUsecase), new(*userUsecase.Usecase)),
 	// wire.Bind(new(Tr), new(*userUsecase.Usecase)),

@@ -39,3 +39,11 @@ CREATE TABLE IF NOT EXISTS transfers_history (
     amount INT CHECK(amount BETWEEN 0 AND 3000000) NOT NULL,
     CONSTRAINT different_users CHECK (sender_id != receiver_id)
 );
+
+CREATE TABLE IF NOT EXISTS transfers_history_name (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sender_name VARCHAR(255) NOT NULL REFERENCES users(name),
+    receiver_name  VARCHAR(255) NOT NULL REFERENCES users(name) ,
+    amount INT CHECK(amount BETWEEN 0 AND 3000000) NOT NULL,
+    CONSTRAINT different_users CHECK (sender_name != receiver_name)
+);

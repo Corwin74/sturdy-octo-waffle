@@ -5,7 +5,7 @@ import (
 	"errors"
 	"shop/internal/conf"
 	"shop/internal/models"
-	"shop/internal/repository/common"
+	"shop/internal/common"
 	user_repo_mock "shop/mocks/repository/user"
 	"testing"
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"shop/internal/models"
-	"shop/internal/repository/common"
+	"shop/internal/common"
 	"shop/internal/repository/scheme/useritem"
 	"shop/pkg/querier"
 	"shop/pkg/transaction"
