@@ -1,51 +1,34 @@
-# Kratos Project Template
+## Как запустить проект
 
-## Install Kratos
-```
-go install github.com/go-kratos/kratos/cmd/kratos/v2@latest
-```
-## Create a service
-```
-# Create a template project
-kratos new server
+Скачать репозиторий
 
-cd server
-# Add a proto template
-kratos proto add api/server/server.proto
-# Generate the proto code
-kratos proto client api/server/server.proto
-# Generate the source code of service by proto file
-kratos proto server api/server/server.proto -t internal/service
+    Подготовка системы:
 
-go generate ./...
-go build -o ./bin/ ./...
-./bin/server -conf ./configs
-```
-## Generate other auxiliary files by Makefile
-```
-# Download and update dependencies
-make init
-# Generate API files (include: pb.go, http, grpc, validate, swagger) by proto file
-make api
-# Generate all files
-make all
-```
-## Automated Initialization (wire)
-```
-# install wire
-go get github.com/google/wire/cmd/wire
+    Убедитесь, что у вас установлен Docker и Docker Compose
+    Проверьте, что порты 8080 не заняты другими приложениями
+    Выполните сборку приложения командой 
 
-# generate wire
-cd cmd/server
-wire
-```
+    # Сборка и запуск контейнеров
+    ```
+    docker-compose up --build
+    ```
 
-## Docker
-```bash
-# build
-docker build -t <your-docker-image-name> .
+    # Для запуска в фоновом режиме используйте
+    ```bash
+    docker-compose up -d --build
+    ```
 
-# run
-docker run --rm -p 8000:8000 -p 9000:9000 -v </path/to/your/configs>:/data/conf <your-docker-image-name>
-```
+    Сервис будет доступен на порту 8080
 
+    Интеграционные тесты находятся в папке
+    ```bash
+    /integration
+    ```
+
+    Юнит-тесты
+    ```
+    /internal/usecase/user/usecase_test.go
+    ```
+
+
+P.S. Прощу прощения за такой маленький Read.ME. На подробные комментарии не осталось времени, до дедлайна меньше часа.
