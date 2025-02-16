@@ -58,7 +58,7 @@ func (repo *Repository) Get(ctx context.Context, filter Filter) (models.Item, er
 	return domainModel, nil
 }
 
-func (repo *Repository) GetMany(ctx context.Context, filter Filter) (models.Item, error) {
+func (repo *Repository) GetMany(ctx context.Context, filter Filter) ([]models.Item, error) {
 	query := sq.Select(scheme_item.ID, scheme_item.Name, scheme_item.Price).
 		PlaceholderFormat(sq.Dollar).
 		From(scheme_item.Table)
@@ -69,24 +69,26 @@ func (repo *Repository) GetMany(ctx context.Context, filter Filter) (models.Item
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return models.Item{}, fmt.Errorf("building sql: %w", err)
+		return []models.Item{}, fmt.Errorf("building sql: %w", err)
 	}
 
-	row := transaction.Get(ctx, repo.querier).QueryRow(ctx, sql, args...)
-	var dbModel scheme_item.Item
-	err = row.Scan(&dbModel.ID, &dbModel.Name, &dbModel.Price)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Item{}, common.ErrNotFound
+	rows, err := transaction.Get(ctx, repo.querier).Query(ctx, sql, args...)
+	defer rows.Close()
+	
+	var domainModels []models.Item
+	for rows.Next() {
+		var dbModel scheme_item.Item
+		err = rows.Scan(&dbModel.ID, &dbModel.Name, &dbModel.Price)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return []models.Item{}, common.ErrNotFound
+			}
+			return []models.Item{}, fmt.Errorf("scanning item: %w", err)
 		}
-
-		return models.Item{}, fmt.Errorf("quering: %w", err)
+		domainModel, _ :=  dbModel.ConvertToDomainModel()
+		domainModels = append(domainModels, domainModel)
 	}
+	
 
-	domainModel, err := dbModel.ConvertToDomainModel()
-	if err != nil {
-		return  models.Item{}, fmt.Errorf("converting: %w", err)
-	}
-
-	return domainModel, nil
+	return domainModels, nil
 }

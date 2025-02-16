@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     balance INT CHECK(balance BETWEEN 0 AND 3000000) NOT NULL
 );

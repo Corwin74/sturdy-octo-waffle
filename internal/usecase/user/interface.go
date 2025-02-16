@@ -6,6 +6,7 @@ import (
 	repo_user "shop/internal/repository/user"
 	repo_item "shop/internal/repository/item"
 	repo_useritem "shop/internal/repository/useritem"
+	repo_transferhistory "shop/internal/repository/transferhistory"
 
 	"github.com/google/uuid"
 )
@@ -20,13 +21,16 @@ type UserRepo interface {
 
 type ItemRepo interface {
 	Get(ctx context.Context, filter repo_item.Filter) (models.Item, error)
+	GetMany(ctx context.Context, filter repo_item.Filter) ([]models.Item, error)
 }
 
 type TransferHistory interface{
 	Create(ctx context.Context, th models.TransferHistory) (uuid.UUID, error)
+	GetMany(ctx context.Context, filter repo_transferhistory.Filter) ([]models.TransferHistory, error)
 }
 
 type UserItemRepo interface {
 	Get(ctx context.Context, filter repo_useritem.Filter) (models.UserItem, error)
 	Create(ctx context.Context, md models.UserItem) (uuid.UUID, error)
+	GetUserItemsAmount(ctx context.Context, filter repo_useritem.Filter) ([]models.UserItemsAmount, error)
 }

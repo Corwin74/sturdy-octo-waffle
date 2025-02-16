@@ -43,16 +43,22 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/shop.v1.BaseResponse'
+    /api/info:
+        get:
+            tags:
+                - Shop
+            operationId: Shop_Info
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/shop.v1.InfoResponse'
     /api/sendCoin:
         post:
             tags:
                 - Shop
-            description: |-
-                rpc Info(InfoRequest) returns (InfoResponse) {
-                   option (google.api.http) = {
-                     get: "/api/info"
-                   };
-                 }
             operationId: Shop_SendCoin
             requestBody:
                 content:
@@ -92,6 +98,49 @@ components:
             properties:
                 error:
                     type: string
+        shop.v1.CoinHistoryDetails:
+            type: object
+            properties:
+                received:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/shop.v1.ReceivedTransaction'
+                sent:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/shop.v1.SentTransaction'
+            description: История транзакций с монетами
+        shop.v1.InfoResponse:
+            type: object
+            properties:
+                coins:
+                    type: integer
+                    format: int32
+                inventory:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/shop.v1.InventoryItem'
+                coinHistory:
+                    $ref: '#/components/schemas/shop.v1.CoinHistoryDetails'
+            description: InfoResponse представляет информацию о монетах, инвентаре и истории транзакций
+        shop.v1.InventoryItem:
+            type: object
+            properties:
+                type:
+                    type: string
+                quantity:
+                    type: integer
+                    format: int32
+            description: Предмет в инвентаре
+        shop.v1.ReceivedTransaction:
+            type: object
+            properties:
+                fromUser:
+                    type: string
+                amount:
+                    type: integer
+                    format: int32
+            description: Полученная транзакция
         shop.v1.SentTransaction:
             type: object
             properties:

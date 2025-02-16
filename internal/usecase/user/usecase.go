@@ -9,15 +9,18 @@ import (
 	"shop/internal/repository/common"
 	repo_item "shop/internal/repository/item"
 	repo_user "shop/internal/repository/user"
+	repo_useritem "shop/internal/repository/useritem"
 	"shop/pkg/querier"
 	"shop/pkg/transaction"
+
+	"github.com/google/uuid"
 )
 
 // Usecase -- пользователя
 type Usecase struct {
 	userRepo          UserRepo
 	itemRepo 		  ItemRepo
-	useritemRepo      UserItemRepo
+	userItemRepo      UserItemRepo
 	transferHistory   TransferHistory
 	config            *conf.Secrets
 	querier           querier.Querier
@@ -29,7 +32,7 @@ func NewUsecase(
 	userRepo UserRepo,
 	transferHistory TransferHistory,
 	itemRepo ItemRepo,
-	useritemRepo UserItemRepo,
+	userItemRepo UserItemRepo,
 	config *conf.Secrets,
 	querier querier.Querier,
 	transactionFabric transaction.Fabric,
@@ -37,7 +40,7 @@ func NewUsecase(
 	return &Usecase{
 		userRepo:        userRepo,
 		itemRepo: 		 itemRepo,
-		useritemRepo:    useritemRepo,	
+		userItemRepo:    userItemRepo,	
 		transferHistory: transferHistory,
 		config:          config,
 		querier:         querier,
@@ -178,7 +181,7 @@ func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
 		}
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
-	_, err = uc.useritemRepo.Create(ctx, models.UserItem{UserID: userID, ItemID: item.ID})
+	_, err = uc.userItemRepo.Create(ctx, models.UserItem{UserID: userID, ItemID: item.ID})
 	if err != nil {
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
@@ -191,4 +194,52 @@ func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
 	}
 
 	return nil
+}
+
+func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
+	userID, err := uc.userRepo.IsAuth(ctx)
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("not auth") // TODO
+	}
+
+	// ctx, tr, err := uc.transactionFabric.Begin(ctx)
+	// if err != nil {
+	// 	return models.UserInfo{}, fmt.Errorf("begin transaction: %w", err)
+	// }
+
+	userFilter := repo_useritem.Filter{UserID: &userID}
+	// getOpts := repo_user.GetOptions{ForUpdate: true}
+	// user, err := uc.userRepo.Get(ctx, userFilter, getOpts)
+	// if err != nil {
+	// 	return models.UserInfo{}, fmt.Errorf("receive user: %w", err)
+	
+
+	userItemsAmount, err := uc.userItemRepo.GetUserItemsAmount(ctx, userFilter)
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("get user item amount: %w", err)
+	}
+
+	items, err := uc.itemRepo.GetMany(ctx, repo_item.Filter{})
+	if err != nil {
+		return models.UserInfo{}, fmt.Errorf("get items: %w", err)
+	}
+
+	idToName := make(map[uuid.UUID]string)
+
+	for _, item := range items {
+		idToName[item.ID] = item.Name
+	}
+
+	var inventory []models.InventoryItem
+	for _, itemAmount := range userItemsAmount {
+		name, exist := idToName[itemAmount.ItemID]
+		if !exist {
+			return models.UserInfo{}, fmt.Errorf("item name not found: %w", err)
+		}
+		inventory = append(inventory, models.InventoryItem{Type: name, Quantity: uint(itemAmount.Quantity)})
+	}
+
+	fmt.Println(inventory)
+
+	return models.UserInfo{}, nil
 }

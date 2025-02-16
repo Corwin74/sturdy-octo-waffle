@@ -8,11 +8,11 @@ option go_package = "shop/api/shop/v1;v1";
 
 // The Shop service definition.
 service Shop {
-  // rpc Info(InfoRequest) returns (InfoResponse) {
-  //   option (google.api.http) = {
-  //     get: "/api/info"
-  //   };
-  // }
+  rpc Info(InfoRequest) returns (InfoResponse) {
+    option (google.api.http) = {
+      get: "/api/info"
+    };
+  }
   rpc SendCoin(SentTransaction) returns (BaseResponse) {
     option (google.api.http) = {
       post: "/api/sendCoin"

@@ -20,12 +20,13 @@ func NewShopService(uu UserUsecase) *ShopService {
 	}
 }
 
-// // Info -- Получить информацию о монетах, инвентаре и истории транзакций
-// func (s *ShopService) Info(ctx context.Context, in *v1.InfoRequest) (*v1.InfoResponse, error) {
-
-// 	return &v1.InfoResponse{Coins: 50, Inventory: []*v1.InventoryItem{},
-// 	CoinHistory: nil}, nil
-// }
+// Info -- Получить информацию о монетах, инвентаре и истории транзакций
+func (s *ShopService) Info(ctx context.Context, in *v1.InfoRequest) (*v1.InfoResponse, error) {
+	info, err := s.userUsecase.Info(ctx)
+	fmt.Println(info, err)
+	return &v1.InfoResponse{Coins: 50, Inventory: []*v1.InventoryItem{},
+	CoinHistory: nil}, nil
+}
 
 // SendCoin -- Отправить монеты другому пользователю
 func (s *ShopService) SendCoin(ctx context.Context, in *v1.SentTransaction) (*v1.BaseResponse, error) {

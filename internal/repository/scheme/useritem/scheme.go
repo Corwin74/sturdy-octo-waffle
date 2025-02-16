@@ -28,6 +28,10 @@ type UserItem struct {
 	ItemID string
 }
 
+type UserItemsAmount struct {
+	ItemID string
+	Quantity int
+}
 
 func ConvertToDBModel(useritem models.UserItem) UserItem {
 	return UserItem{
@@ -55,5 +59,16 @@ func (ui UserItem) ConvertToDomainModel() (models.UserItem, error) {
 		ID: id,
 		UserID: userID,
 		ItemID: itemID,
+	}, nil
+}
+
+func (uia UserItemsAmount) ConvertToDomainModel() (models.UserItemsAmount, error) {
+	itemID, err := uuid.Parse(uia.ItemID)
+	if err != nil {
+		return models.UserItemsAmount{}, fmt.Errorf("parsing itemID: %w", err)
+	}
+	return models.UserItemsAmount{
+		ItemID: itemID,
+		Quantity: uia.Quantity,
 	}, nil
 }

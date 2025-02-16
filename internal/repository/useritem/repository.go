@@ -89,3 +89,47 @@ func (repo *Repository) Create(ctx context.Context, md models.UserItem) (uuid.UU
 	}
 	return id, nil
 }
+
+func (repo *Repository) GetUserItemsAmount(ctx context.Context, filter Filter) ([]models.UserItemsAmount, error) {
+	query := sq.Select(
+		scheme_useritem.ItemID,
+		"count(" + scheme_useritem.ItemID + ")",
+	).PlaceholderFormat(sq.Dollar).From(scheme_useritem.Table)
+	
+	if filter.UserID != nil {
+		query = query.Where(sq.Eq{scheme_useritem.UserID: *filter.UserID})
+	}
+	
+	query = query.GroupBy(scheme_useritem.ItemID)
+	
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return []models.UserItemsAmount{}, fmt.Errorf("building sql: %w", err)
+	}
+
+	rows, err := repo.querier.Query(ctx, sql, args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []models.UserItemsAmount{}, common.ErrNotFound
+		}
+
+		return []models.UserItemsAmount{}, fmt.Errorf("quering: %w", err)
+	}
+	var domainModels []models.UserItemsAmount
+	defer rows.Close()
+
+	for rows.Next() {
+		var dbModel scheme_useritem.UserItemsAmount
+		err = rows.Scan(&dbModel.ItemID, &dbModel.Quantity)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return []models.UserItemsAmount{}, common.ErrNotFound
+			}
+			return []models.UserItemsAmount{}, fmt.Errorf("scanning: %w", err)
+		}
+		domainModel, _ := dbModel.ConvertToDomainModel()
+		domainModels = append(domainModels, domainModel)
+	}
+
+	return domainModels, nil
+}

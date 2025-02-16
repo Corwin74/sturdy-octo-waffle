@@ -1,5 +1,7 @@
 package useritem
 
+import "github.com/google/uuid"
+
 type Filter struct {
-	UserID *string
+	UserID *uuid.UUID
 }

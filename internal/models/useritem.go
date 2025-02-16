@@ -8,3 +8,8 @@ type UserItem struct {
 	UserID uuid.UUID
 	ItemID uuid.UUID
 }
+
+type UserItemsAmount struct {
+	ItemID uuid.UUID
+	Quantity int
+}
