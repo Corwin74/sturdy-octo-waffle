@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	v1 "shop/api/shop/v1"
 	"shop/internal/common"
 )
@@ -24,10 +23,12 @@ func NewShopService(uu UserUsecase) *ShopService {
 // Info -- Получить информацию о монетах, инвентаре и истории транзакций
 func (s *ShopService) Info(ctx context.Context, in *v1.InfoRequest) (*v1.InfoResponse, error) {
 	userInfo, err := s.userUsecase.Info(ctx)
-	fmt.Println(err)
 	if err != nil {
-        return nil, ErrUnauthorized
-    }
+		if errors.Is(err, common.ErrUnauthorized) {
+			return nil, ErrUnauthorized
+		}
+		return nil, ErrBadRequest
+	}
 
     protoInventory := make([]*v1.InventoryItem, len(userInfo.Inventory))
     for i, item := range userInfo.Inventory {
