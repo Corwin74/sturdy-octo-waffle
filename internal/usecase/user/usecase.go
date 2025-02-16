@@ -91,6 +91,7 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 	}
 
 	ctx, tr, err := uc.transactionFabric.Begin(ctx)
+	
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -99,13 +100,16 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 	getOpts := repo_user.GetOptions{ForUpdate: true}
 	toUser, err := uc.userRepo.Get(ctx, toUserFilter, getOpts)
 	if err != nil {
+		tr.Rollback(ctx)
 		return fmt.Errorf("receive user: %w", err)
 	}
 	fromUser, err := uc.userRepo.Get(ctx, fromUserFilter, getOpts)
 	if err != nil {
+		tr.Rollback(ctx)
 		return fmt.Errorf("receive user: %w", err)
 	}
 	if fromUser.Balance < amount {
+		tr.Rollback(ctx)
 		return fmt.Errorf("no enough money: %w", err)
 	}
 
@@ -117,7 +121,8 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
 		}
-		return fmt.Errorf("commiting transaction: %w", err)
+		tr.Rollback(ctx)
+		return fmt.Errorf("update balance: %w", err)
 	}
 
 	err = uc.userRepo.Update(ctx, repo_user.Update{Balance: &toUser.Balance}, toUserFilter)
@@ -125,7 +130,8 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
 		}
-		return fmt.Errorf("commiting transaction: %w", err)
+		tr.Rollback(ctx)
+		return fmt.Errorf("update balance: %w", err)
 	}
 	transferHistory := models.TransferHistoryName{
 		SenderName:   fromUser.Name,
@@ -137,6 +143,7 @@ func (uc *Usecase) TransferCoins(ctx context.Context, toUserName string, amount 
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
 		}
+		tr.Rollback(ctx)
 		return fmt.Errorf("commiting transaction: %w", err)
 	}
 	err = tr.Commit(ctx)
@@ -162,13 +169,16 @@ func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
 	getOpts := repo_user.GetOptions{ForUpdate: true}
 	user, err := uc.userRepo.Get(ctx, userFilter, getOpts)
 	if err != nil {
+		tr.Rollback(ctx)
 		return fmt.Errorf("receive user: %w", err)
 	}
 	item, err := uc.itemRepo.Get(ctx, itemFilter)
 	if err != nil {
+		tr.Rollback(ctx)
 		return fmt.Errorf("item: %w", err)
 	}
 	if user.Balance < item.Price {
+		tr.Rollback(ctx)
 		return fmt.Errorf("no enough money: %w", err)
 	}
 
@@ -179,14 +189,16 @@ func (uc *Usecase)Buy(ctx context.Context, itemName string) error {
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
 		}
-		return fmt.Errorf("commiting transaction: %w", err)
+		tr.Rollback(ctx)
+		return fmt.Errorf("update balance %w", err)
 	}
 	_, err = uc.userItemRepo.Create(ctx, models.UserItem{UserID: userID, ItemID: item.ID})
 	if err != nil {
 		if tErr := tr.Rollback(ctx); tErr != nil {
 			return fmt.Errorf("rollbacking transaction (%s): %w", err, tErr)
 		}
-		return fmt.Errorf("commiting transaction: %w", err)
+		tr.Rollback(ctx)
+		return fmt.Errorf("update balance: %w", err)
 	}
 	err = tr.Commit(ctx)
 	if err != nil {
@@ -201,7 +213,7 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	if err != nil {
 		return models.UserInfo{}, common.ErrUnauthorized
 	}
-
+	
 	ctx, tr, err := uc.transactionFabric.Begin(ctx)
 	if err != nil {
 		return models.UserInfo{}, fmt.Errorf("begin transaction: %w", err)
@@ -211,16 +223,19 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	getOpts := repo_user.GetOptions{ForUpdate: true}
 	user, err := uc.userRepo.Get(ctx, repo_user.Filter{ID: &userID}, getOpts)
 	if err != nil {
+		tr.Rollback(ctx)
 		return models.UserInfo{}, fmt.Errorf("info user: %w", err)
 	}
 	
 	userItemsAmount, err := uc.userItemRepo.GetUserItemsAmount(ctx, userFilter)
 	if err != nil {
+		tr.Rollback(ctx)
 		return models.UserInfo{}, fmt.Errorf("get user item amount: %w", err)
 	}
-
+	
 	items, err := uc.itemRepo.GetMany(ctx, repo_item.Filter{})
 	if err != nil {
+		tr.Rollback(ctx)
 		return models.UserInfo{}, fmt.Errorf("get items: %w", err)
 	}
 
@@ -234,6 +249,7 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	for _, itemAmount := range userItemsAmount {
 		name, exist := idToName[itemAmount.ItemID]
 		if !exist {
+			tr.Rollback(ctx)
 			return models.UserInfo{}, fmt.Errorf("item name not found: %w", err)
 		}
 		inventory = append(inventory, models.InventoryItem{Type: name, Quantity: uint(itemAmount.Quantity)})
@@ -242,18 +258,21 @@ func (uc *Usecase)Info(ctx context.Context) (models.UserInfo, error) {
 	receivedCoinsHistory, err := uc.transferHistoryName.
 		GetMany(ctx, repo_transferhistory.Filter{ReceiverName: &user.Name})
 	if err != nil {
+		tr.Rollback(ctx)
 		return models.UserInfo{}, fmt.Errorf("receive history: %w", err)
 	}
 
 	sentCoinsHistory, err := uc.transferHistoryName.
 	GetMany(ctx, repo_transferhistory.Filter{SenderName: &user.Name})
 	if err != nil {
+		tr.Rollback(ctx)
 		return models.UserInfo{}, fmt.Errorf("send history: %w", err)
 	}
 	err = tr.Commit(ctx)
 	if err != nil {
 		return models.UserInfo{}, fmt.Errorf("commiting transaction: %w", err)
 	}
+	
 	var sentCoins []models.SentCoins
 	for _, transfer := range sentCoinsHistory {
 		sentCoins = append(sentCoins, models.SentCoins{ToUser: transfer.ReceiverName, Amount: transfer.Amount})

@@ -8,6 +8,6 @@ server:
 data:
   database:
     driver: pgx
-    source: postgres://db_admin:avito2025@127.0.0.1:5432/avito_shop
+    source: postgres://db_admin:avito2025@postgres_avito_shop:5432/avito_shop
 secrets:
-  jwtKey: jslkjfljfljsflsjflskjf4u
+  jwtKey: "must be securing to env"

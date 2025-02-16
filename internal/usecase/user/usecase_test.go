@@ -7,8 +7,8 @@ import (
 	"shop/internal/conf"
 	"shop/internal/models"
 	repo_item "shop/internal/repository/item"
-	repo_user "shop/internal/repository/user"
 	repo_transferhistory "shop/internal/repository/transferhistoryname"
+	repo_user "shop/internal/repository/user"
 	repo_useritem "shop/internal/repository/useritem"
 	"shop/mocks/pkg/querier"
 	"shop/mocks/pkg/transaction"
@@ -118,35 +118,31 @@ func (u *UsecaseSuite) TestUsecase_TransferCoins() {
 	toUsername := "receiver"
 	initialBalance := uint(1000)
 	transferAmount := uint(500)
-	//var balanceValue uint = 10
 
 	u.Run("успешный перевод монет", func() {
-		// Мок проверки авторизации
+		
 		u.userRepo.EXPECT().IsAuth(gomock.Any()).Return(fromUserID, nil)
 
-		// Мок начала транзакции
 		u.transactionFabric.EXPECT().Begin(gomock.Any()).Return(ctx, u.mockTx, nil)
 
-		// Мок получения пользователей
+		u.mockTx.EXPECT().Rollback(gomock.Any()).Return(nil).AnyTimes()
+
 		u.userRepo.EXPECT().Get(gomock.Any(), repo_user.Filter{Username: &toUsername}, repo_user.GetOptions{ForUpdate: true}).
 			Return(models.User{Name: toUsername, Balance: initialBalance}, nil)
 		u.userRepo.EXPECT().Get(gomock.Any(), repo_user.Filter{ID: &fromUserID}, repo_user.GetOptions{ForUpdate: true}).
 			Return(models.User{Name: fromUsername, Balance: initialBalance}, nil)
 
-		// Мок обновления балансов
 		u.userRepo.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(repo_user.Update{}),
 			repo_user.Filter{ID: &fromUserID}).Return(nil)
 		u.userRepo.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(repo_user.Update{}),
 			repo_user.Filter{Username: &toUsername}).Return(nil)
 
-		// Мок создания записи в истории
 		u.transferHistoryName.EXPECT().Create(gomock.Any(), models.TransferHistoryName{
 			SenderName:   fromUsername,
 			ReceiverName: toUsername,
 			Amount:       transferAmount,
 		}).Return(uuid.New(), nil)
 
-		// Мок подтверждения транзакции
 		u.mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 
 		err := u.self.TransferCoins(ctx, toUsername, transferAmount)
@@ -177,33 +173,28 @@ func (u *UsecaseSuite) TestUsecase_Buy() {
 	initialBalance := uint(1000)
 	itemPrice := uint(500)
 	itemID := uuid.New()
-	//var balanceValue uint = 10
 
 	u.Run("успешная покупка предмета", func() {
-		// Мок проверки авторизации
 		u.userRepo.EXPECT().IsAuth(gomock.Any()).Return(userID, nil)
 
-		// Мок начала транзакции
 		u.transactionFabric.EXPECT().Begin(gomock.Any()).Return(ctx, u.mockTx, nil)
 
-		// Мок получения пользователя и предмета
+		u.mockTx.EXPECT().Rollback(gomock.Any()).Return(nil).AnyTimes()
+
 		u.userRepo.EXPECT().Get(gomock.Any(), repo_user.Filter{ID: &userID}, repo_user.GetOptions{ForUpdate: true}).
 			Return(models.User{Balance: initialBalance}, nil)
 		u.itemRepo.EXPECT().Get(gomock.Any(), repo_item.Filter{Name: &itemName}).
 			Return(models.Item{ID: itemID, Price: itemPrice}, nil)
 
-		// Мок обновления баланса 
-		u.userRepo.EXPECT().Update(gomock.Any(), 
+		u.userRepo.EXPECT().Update(gomock.Any(),
 			gomock.AssignableToTypeOf(repo_user.Update{}),
 			repo_user.Filter{ID: &userID}).Return(nil)
 
-		// Мок создания записи о владении предметом
 		u.userItemRepo.EXPECT().Create(gomock.Any(), models.UserItem{
 			UserID: userID,
 			ItemID: itemID,
 		}).Return(uuid.New(), nil)
 
-		// Мок подтверждения транзакции
 		u.mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 
 		err := u.self.Buy(ctx, itemName)
@@ -242,81 +233,75 @@ func (u *UsecaseSuite) TestUsecase_Buy() {
 }
 
 func (u *UsecaseSuite) TestUsecase_Info() {
-    ctx := context.Background()
-    userID := uuid.New()
-    userName := "test_user"
-    balance := uint(1000)
+	ctx := context.Background()
+	userID := uuid.New()
+	userName := "test_user"
+	balance := uint(1000)
 
-    u.Run("успешное получение информации", func() {
-        // Мок проверки авторизации
-        u.userRepo.EXPECT().IsAuth(gomock.Any()).Return(userID, nil)
+	u.Run("успешное получение информации", func() {
+		u.userRepo.EXPECT().IsAuth(gomock.Any()).Return(userID, nil)
 
-        // Мок начала транзакции
-        u.transactionFabric.EXPECT().Begin(gomock.Any()).Return(ctx, u.mockTx, nil)
+		u.transactionFabric.EXPECT().Begin(gomock.Any()).Return(ctx, u.mockTx, nil)
 
-        // Мок получения пользователя
-        u.userRepo.EXPECT().Get(gomock.Any(), 
-            repo_user.Filter{ID: &userID}, 
-            repo_user.GetOptions{ForUpdate: true}).
-            Return(models.User{ID: userID, Name: userName, Balance: balance}, nil)
+		u.mockTx.EXPECT().Rollback(gomock.Any()).Return(nil).AnyTimes()
 
-        // Мок получения количества предметов пользователя
-        itemID := uuid.New()
-        userItemsAmount := []models.UserItemsAmount{{
-            ItemID:    itemID,
-            Quantity: 1,
-        }}
-        u.userItemRepo.EXPECT().GetUserItemsAmount(gomock.Any(), 
-            repo_useritem.Filter{UserID: &userID}).
-            Return(userItemsAmount, nil)
+		u.userRepo.EXPECT().Get(gomock.Any(),
+			repo_user.Filter{ID: &userID},
+			repo_user.GetOptions{ForUpdate: true}).
+			Return(models.User{ID: userID, Name: userName, Balance: balance}, nil)
 
-        // Мок получения списка предметов
-        items := []models.Item{{
-            ID:    itemID,
-            Name:  "test_item",
-            Price: 100,
-        }}
-        u.itemRepo.EXPECT().GetMany(gomock.Any(), repo_item.Filter{}).
-            Return(items, nil)
+		itemID := uuid.New()
+		userItemsAmount := []models.UserItemsAmount{{
+			ItemID:   itemID,
+			Quantity: 1,
+		}}
+		u.userItemRepo.EXPECT().GetUserItemsAmount(gomock.Any(),
+			repo_useritem.Filter{UserID: &userID}).
+			Return(userItemsAmount, nil)
 
-        // Мок получения истории полученных монет
-        receivedHistory := []models.TransferHistoryName{{
-            SenderName:   "sender",
-            ReceiverName: userName,
-            Amount:      200,
-        }}
-        u.transferHistoryName.EXPECT().GetMany(gomock.Any(), 
-            repo_transferhistory.Filter{ReceiverName: &userName}).
-            Return(receivedHistory, nil)
+		items := []models.Item{{
+			ID:    itemID,
+			Name:  "test_item",
+			Price: 100,
+		}}
+		u.itemRepo.EXPECT().GetMany(gomock.Any(), repo_item.Filter{}).
+			Return(items, nil)
 
-        // Мок получения истории отправленных монет
-        sentHistory := []models.TransferHistoryName{{
-            SenderName:   userName,
-            ReceiverName: "receiver",
-            Amount:      100,
-        }}
-        u.transferHistoryName.EXPECT().GetMany(gomock.Any(), 
-            repo_transferhistory.Filter{SenderName: &userName}).
-            Return(sentHistory, nil)
+		receivedHistory := []models.TransferHistoryName{{
+			SenderName:   "sender",
+			ReceiverName: userName,
+			Amount:       200,
+		}}
+		u.transferHistoryName.EXPECT().GetMany(gomock.Any(),
+			repo_transferhistory.Filter{ReceiverName: &userName}).
+			Return(receivedHistory, nil)
 
-        // Мок подтверждения транзакции
-        u.mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
+		sentHistory := []models.TransferHistoryName{{
+			SenderName:   userName,
+			ReceiverName: "receiver",
+			Amount:       100,
+		}}
+		u.transferHistoryName.EXPECT().GetMany(gomock.Any(),
+			repo_transferhistory.Filter{SenderName: &userName}).
+			Return(sentHistory, nil)
 
-        info, err := u.self.Info(ctx)
-        u.NoError(err)
-        u.Equal(balance, info.Coins)
-        u.Len(info.Inventory, 1)
-        u.Len(info.CoinHistory.Received, 1)
-        u.Len(info.CoinHistory.Sent, 1)
-    })
+		u.mockTx.EXPECT().Commit(gomock.Any()).Return(nil)
 
-    u.Run("ошибка авторизации", func() {
-        u.userRepo.EXPECT().IsAuth(gomock.Any()).
-            Return(uuid.UUID{}, common.ErrUnauthorized)
+		info, err := u.self.Info(ctx)
+		u.NoError(err)
+		u.Equal(balance, info.Coins)
+		u.Len(info.Inventory, 1)
+		u.Len(info.CoinHistory.Received, 1)
+		u.Len(info.CoinHistory.Sent, 1)
+	})
 
-        info, err := u.self.Info(ctx)
-        u.Error(err)
-        u.Equal(err, common.ErrUnauthorized)
-        u.Equal(models.UserInfo{}, info)
-    })
+	u.Run("ошибка авторизации", func() {
+		u.userRepo.EXPECT().IsAuth(gomock.Any()).
+			Return(uuid.UUID{}, common.ErrUnauthorized)
+
+		info, err := u.self.Info(ctx)
+		u.Error(err)
+		u.Equal(err, common.ErrUnauthorized)
+		u.Equal(models.UserInfo{}, info)
+	})
 }

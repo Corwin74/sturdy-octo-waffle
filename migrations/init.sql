@@ -32,13 +32,6 @@ CREATE TABLE IF NOT EXISTS users_items (
     id_item UUID NOT NULL REFERENCES items(id)  
 );
 
-CREATE TABLE IF NOT EXISTS transfers_history (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    sender_id UUID NOT NULL REFERENCES users(id),
-    receiver_id UUID NOT NULL REFERENCES users(id) ,
-    amount INT CHECK(amount BETWEEN 0 AND 3000000) NOT NULL,
-    CONSTRAINT different_users CHECK (sender_id != receiver_id)
-);
 
 CREATE TABLE IF NOT EXISTS transfers_history_name (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
